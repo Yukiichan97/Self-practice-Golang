@@ -3,15 +3,35 @@ package main
 import (
 	"awesomeProject6/config"
 	"awesomeProject6/controller"
+	"awesomeProject6/model"
 	"awesomeProject6/service"
+	"awesomeProject6/service/db"
+	"fmt"
+
+	"github.com/gin-gonic/gin"
 )
 
 func main() {
-	APIService := service.NewService()
-	APIcontroller := controller.NewController(APIService)
+	APIConfig, err := config.NewConfig()
+	if err != nil {
+		fmt.Println("Failed to load config: ", err)
+	}
 
-	APIConfig := config.NewConfig()
+	db.ConnectDB(APIConfig)
+	db.DB.AutoMigrate(&model.Movie{})
 
-	APIConfig.GET("/healthz", APIcontroller.GetTime)
-	APIConfig.Run(":8080")
+	timeService := service.NewTimeService()
+	timeController := controller.NewController(timeService)
+
+	movieService := service.NewMovieService()
+	movieController := controller.NewMovieController(movieService)
+
+	router := gin.Default()
+	router.GET("/healthz", timeController.GetTime)
+	router.POST("/movies", movieController.CreateMovie)
+	router.GET("/movies/:id", movieController.GetMovieByID)
+	router.GET("/movies/search", movieController.SearchMovie)
+	//db.SeedMoviesFromCSV("service/db/movies.csv")
+	router.Run(":8080")
+
 }
